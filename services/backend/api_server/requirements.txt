@@ -10,7 +10,7 @@ python-multipart==0.0.6
 redis==5.0.1
 uvicorn==0.25.0
 websockets==12.0
-requests==2.31.0
+requests==2.32.0
 googlesearch-python==1.2.3
 langchain==0.0.351
 spacy==3.7.2
