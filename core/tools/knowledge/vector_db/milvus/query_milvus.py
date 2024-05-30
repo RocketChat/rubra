@@ -133,7 +133,6 @@ class Milvus(VectorStore):
         if alias is not None:
             self.alias = alias
         elif connection_args is not None:
-            connection_args = DEFAULT_MILVUS_CONNECTION
             self.alias = Milvus.create_connection_alias(connection_args)
         else:
             raise ValueError('alias or connection_args must be passed to Milvus construtor')
