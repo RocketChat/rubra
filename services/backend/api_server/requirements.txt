@@ -4,7 +4,7 @@ celery==5.3.6
 fastapi==0.105.0
 motor==3.3.2
 openai==1.6.1
-pymilvus==2.3.4
+pymilvus==2.2.8
 pydantic==1.10.9
 python-multipart==0.0.6
 redis==5.0.1

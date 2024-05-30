@@ -11,17 +11,12 @@ from core.tools.knowledge.vector_db.milvus.operations import (
     get_similar_match,
     load_collection,
 )
-from fastapi import FastAPI
+from fastapi import FastAPI, status, Response
 
 model = {}
 top_re_rank = 5
 top_k_match = 10
 app = FastAPI()
-
-
-@app.on_event("startup")
-async def app_startup():
-    pass
 
 
 @app.post("/add_texts")

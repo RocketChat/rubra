@@ -32,6 +32,7 @@ class Milvus(VectorStore):
         embedding_function: Embeddings,
         collection_name: str = "DefaultCollection",
         connection_args: Optional[Dict[str, Any]] = None,
+        alias: Optional[str] = None,
         consistency_level: str = "Session",
         index_params: Optional[Dict[str, Any]] = None,
         search_params: Optional[Dict[str, Any]] = None,
@@ -129,9 +130,14 @@ class Milvus(VectorStore):
         self._vector_field = "vector"
         self.fields: list[str] = []
         # Create the connection to the server
-        if connection_args is None:
+        if alias is not None:
+            self.alias = alias
+        elif connection_args is not None:
             connection_args = DEFAULT_MILVUS_CONNECTION
-        self.alias = self._create_connection_alias(connection_args)
+            self.alias = Milvus.create_connection_alias(connection_args)
+        else:
+            raise ValueError('alias or connection_args must be passed to Milvus construtor')
+
         self.col: Optional[Collection] = None
 
         # Grab the existing colection if it exists
@@ -154,10 +160,17 @@ class Milvus(VectorStore):
 
         utility.drop_collection(collection_name=self.collection_name, using=self.alias)
 
-    def _create_connection_alias(self, connection_args: dict) -> str:
+    @staticmethod
+    def create_connection_alias(connection_args: dict) -> str:
         """Create the connection to the Milvus server."""
         # Third Party
         from pymilvus import MilvusException, connections
+
+        if connection_args is None:
+            connection_args = DEFAULT_MILVUS_CONNECTION
+        else:
+            # fill anything not passed like "default" port
+            connection_args = {**connection_args, **DEFAULT_MILVUS_CONNECTION}
 
         # Grab the connection arguments that are used for checking existing connection
         host: str = connection_args.get("host", None)

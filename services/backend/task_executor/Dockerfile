@@ -23,4 +23,4 @@ WORKDIR /app
 ENV OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 # Run app.py when the container launches
-CMD ["celery", "-A", "core.tasks.tasks", "worker", "--loglevel=info"]
+CMD ["sh", "-c", "celery -A core.tasks.tasks worker --loglevel=info -n celery@$(hostname)"]

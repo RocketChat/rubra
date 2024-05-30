@@ -1,14 +1,17 @@
 # Standard Library
 import asyncio
+import os
 import json
 import logging
-import os
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, Callable
+
+from pymongo.server_api import ServerApi
+
+import aioredis
 
 # Third Party
-import aioredis
 import requests
 from beanie import init_beanie
 from celery import Celery
@@ -87,7 +90,7 @@ from core.tools.knowledge.vector_db.milvus.operations import (
     delete_docs,
     drop_collection,
 )
-from fastapi import FastAPI, Form, HTTPException, UploadFile, WebSocket
+from fastapi import FastAPI, Form, HTTPException, UploadFile, WebSocket, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.websockets import WebSocketState
@@ -104,9 +107,7 @@ from .helpers import (
     generate_thread_id,
 )
 
-litellm_host = os.getenv("LITELLM_HOST", "localhost")
-redis_host = os.getenv("REDIS_HOST", "localhost")
-mongodb_host = os.getenv("MONGODB_HOST", "localhost")
+import core.config as configs
 
 app = FastAPI()
 
@@ -125,22 +126,36 @@ app.add_middleware(
 )
 
 # MongoDB Configurationget
-MONGODB_URL = f"mongodb://{mongodb_host}:27017"
-DATABASE_NAME = "rubra_db"
-LITELLM_URL = f"http://{litellm_host}:8002"
+LITELLM_URL = configs.litellm_url
+LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY", "abc") # Litellm fails without this key
 HEADERS = {"accept": "application/json", "Content-Type": "application/json"}
 
 # Initialize MongoDB client
-mongo_client = AsyncIOMotorClient(MONGODB_URL)
-database = mongo_client[DATABASE_NAME]
+mongo_client = AsyncIOMotorClient(configs.mongo_url, server_api=ServerApi("1"))
+database = mongo_client[configs.mongo_database]
 
-celery_app = Celery(broker=f"redis://{redis_host}:6379/0")
+celery_app = Celery(broker=configs.redis_url)
+
+redis = aioredis.from_url(configs.redis_url, encoding="utf-8", decode_responses=True)
 
 logging.basicConfig(level=logging.INFO)
 
-
 def get_database():
     return database
+
+async def full_check() -> None:
+    await redis.ping()
+    print("Redis connection is ready!")
+
+    await mongo_client.admin.command("ping")
+    print("MongoDB connection is ready!")
+
+    res = requests.get(f"{LITELLM_URL}/health/readiness", { })
+
+    if res.json().get("status", "") != "healthy":
+        raise Exception("litellm not ready: " + str(res.json()))
+
+    print("litellm is ready!")
 
 
 @app.on_event("startup")
@@ -157,6 +172,8 @@ async def on_startup():
             AssistantFileObject,
         ],
     )
+
+    await full_check()
 
     available_models = [r.id for r in litellm_list_model().data]
     if not available_models:
@@ -179,32 +196,29 @@ async def on_startup():
         welcome_asst_instruction += tool_use_instruction
 
     # Create the Welcome Assistant if it doesn't exist
-    existing_assistant = await AssistantObject.find_one({"id": "asst_welcome"})
-    if not existing_assistant:
-        logging.info("Creating Welcome Assistant")
-        assistant = AssistantObject(
-            assistant_id="asst_welcome",
-            object=Object20.assistant.value,
-            created_at=int(datetime.now().timestamp()),
-            name="Welcome Assistant",
-            description="Welcome Assistant",
-            model=welcome_asst_model,
-            instructions=welcome_asst_instruction,
-            tools=[{"type": Type824.retrieval.value}]
-            if welcome_asst_model in tool_enabled_model_pool
-            else [],  # browser
-            file_ids=[],
-            metadata={},
-        )
-        await assistant.insert()
+    # existing_assistant = await AssistantObject.find_one({"id": "asst_welcome"})
+    # if not existing_assistant:
+    #     logging.info("Creating Welcome Assistant")
+    #     assistant = AssistantObject(
+    #         assistant_id="asst_welcome",
+    #         object=Object20.assistant.value,
+    #         created_at=int(datetime.now().timestamp()),
+    #         name="Welcome Assistant",
+    #         description="Welcome Assistant",
+    #         model=welcome_asst_model,
+    #         instructions=welcome_asst_instruction,
+    #         tools=[{"type": Type824.retrieval.value}]
+    #         if welcome_asst_model in tool_enabled_model_pool
+    #         else [],  # browser
+    #         file_ids=[],
+    #         metadata={},
+    #     )
+    #     await assistant.insert()
 
 
 @app.get("/get_api_key_status", tags=["API Keys"])
 async def get_api_key_status():
     try:
-        redis = await aioredis.from_url(
-            f"redis://{redis_host}:6379/0", encoding="utf-8", decode_responses=True
-        )
         openai_key = await redis.get("OPENAI_API_KEY")
         anthropic_key = await redis.get("ANTHROPIC_API_KEY")
 
@@ -225,10 +239,6 @@ async def get_api_key_status():
 @app.post("/set_api_keys", tags=["API Keys"])
 async def set_api_key_status(api_keys: ApiKeysUpdateModel):
     try:
-        redis = await aioredis.from_url(
-            f"redis://{redis_host}:6379/0", encoding="utf-8", decode_responses=True
-        )
-
         logging.info("Setting API keys")
         logging.info(api_keys)
 
@@ -751,11 +761,16 @@ async def list_messages(
 
 async def redis_subscriber(channel, timeout=1):
     logging.info(f"Connecting to Redis and subscribing to channel: {channel}")
-    redis = await aioredis.from_url(
-        f"redis://{redis_host}:6379/0", encoding="utf-8", decode_responses=True
-    )
     pubsub = redis.pubsub()
     await pubsub.subscribe(channel)
+
+    # Check if the subscription was successful
+    channels = await redis.pubsub_channels()
+    logging.info(f"Channels: {channels}")
+    if channel in channels:
+        logging.info(f"Successfully subscribed to channel: {channel}")
+    else:
+        logging.error(f"Failed to subscribe to channel: {channel}")
 
     while True:
         try:
@@ -778,12 +793,8 @@ async def listen_for_task_status(
     task_status_channel, status_update_event, thread_id, run_id
 ):
     logging.info(f"Listening for task status on channel: {task_status_channel}")
-    redis = None
     pubsub = None
     try:
-        redis = await aioredis.from_url(
-            f"redis://{redis_host}:6379/0", encoding="utf-8", decode_responses=True
-        )
         pubsub = redis.pubsub()
         await pubsub.subscribe(task_status_channel)
 
@@ -1023,7 +1034,7 @@ def convert_model_info_to_oai_model(obj, predefined_models):
 
 def litellm_list_model() -> ListModelsResponse:
     try:
-        client = OpenAI(base_url=LITELLM_URL, api_key="abc")
+        client = OpenAI(base_url=LITELLM_URL, api_key=LITELLM_MASTER_KEY)
         models_data = client.models.list().data
         models_data = sorted(models_data, key=lambda x: x.id)
         predefined_models = [convert_to_model(m) for m in models_data]
@@ -1588,6 +1599,10 @@ async def chat_completion(body: CreateChatCompletionRequest):
         )
     else:
         return response
+
+@app.get("/healthz/liveness", status_code=status.HTTP_204_NO_CONTENT)
+def ping():
+    pass
 
 
 def data_generator(response):
