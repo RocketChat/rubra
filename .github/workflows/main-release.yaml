@@ -50,6 +50,7 @@ jobs:
           ORG: ${{ env.OWNER_LC }}
           REPO: ${{ env.REPO_LC }}
           GITHUB_WORKFLOW: ${{ github.workflow }}
+          TAG: ${{ github.run_id }}
 
   build-tauri:
     runs-on: [macos-latest]
