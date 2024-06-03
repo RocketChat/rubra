@@ -150,7 +150,7 @@ QUESTION: {query}
         temperature=0.1,
         messages=messages,
         stream=False,
-        response_format="web",
+        response_format={"type": "text"}, # mlc doesn't supports string "web" 
     )
     return response.choices[0].message.content
 

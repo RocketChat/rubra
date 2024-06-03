@@ -9,12 +9,16 @@ from pydantic import BaseModel
 from .custom_embeddigs import CustomEmbeddings
 from .query_milvus import Milvus
 
-MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
-
 model = {}
 top_re_rank = 5
 top_k_match = 10
 
+milvus_connection_alias = Milvus.create_connection_alias({
+            "host": os.getenv("MILVUS_HOST", "localhost"),
+            "port": os.getenv("MILVUS_PORT", "19530"),
+            "user": os.getenv("MILVUS_USER", os.getenv("MILVUS_USERNAME", "")),
+            "password": os.getenv("MILVUS_PASS", os.getenv("MILVUS_PASSWORD", ""))
+})
 
 class Query(BaseModel):
     text: str
@@ -27,17 +31,11 @@ class Query(BaseModel):
 def drop_collection(collection_name: str):
     load_collection(collection_name).drop_collection()
 
-
 def load_collection(collection_name: str) -> Milvus:
     return Milvus(
         embedding_function=CustomEmbeddings(),
         collection_name=collection_name,
-        connection_args={
-            "host": MILVUS_HOST,
-            "port": "19530",
-            "user": "username",
-            "password": "password",
-        },
+        alias=milvus_connection_alias,
         index_params={
             "metric_type": "IP",
             "index_type": "FLAT",

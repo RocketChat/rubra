@@ -115,6 +115,7 @@ services:
       - EMBEDDING_HOST=text-embedding-api
       - VECTOR_DB_HOST=vector-db-api
       - MILVUS_HOST=milvus
+      - LITELLM_MASTER_KEY=abc
     depends_on:
       - redis
       - mongodb
@@ -134,6 +135,7 @@ services:
       - REDIS_HOST=redis
       - MONGODB_HOST=mongodb
       - LITELLM_HOST=litellm
+      - MILVUS_HOST=milvus
     ports:
       - '8000:8000'
     depends_on:
