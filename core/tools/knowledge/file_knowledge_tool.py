@@ -1,13 +1,12 @@
 # Standard Library
 import json
-import os
+
+import core.config as configs
 
 # Third Party
 import requests
 
-VECTOR_DB_HOST = os.getenv("VECTOR_DB_HOST", "localhost")
-VECTOR_DB_MATCH_URL = f"http://{VECTOR_DB_HOST}:8010/similarity_match"
-
+vector_db_url = f"{configs.vector_db_url}/similarity_search"
 
 class FileKnowledgeTool:
     name = "FileKnowledge"
@@ -42,7 +41,7 @@ def file_knowledge_search_api(query: str, assistant_id: str):
         }
     )
 
-    response = requests.post(VECTOR_DB_MATCH_URL, headers=headers, data=data)
+    response = requests.post(vector_db_url, headers=headers, data=data)
     res = response.json()["response"]
     txt = ""
     for r in res:

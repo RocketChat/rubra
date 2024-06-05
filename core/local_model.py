@@ -17,6 +17,8 @@ from core.tools.web_browse.web_browse_tool import (
 )
 from openai import OpenAI
 
+import core.config as configs
+
 ner = spacy.load("en_core_web_sm")
 
 pattern = r">(.*?)</"
@@ -27,14 +29,15 @@ CHAT_FORMAT = '{"choice": "Chat", "content": "your response"}'
 TOOL_OUTPUT_ROLE = Role7.tool_output.value
 QUERY_FORMAT = '{"query": "refined question"}'
 
-litellm_host = os.getenv("LITELLM_HOST", "localhost")
-
-
 oai_client = OpenAI(
-    base_url=f"http://{litellm_host}:8002/v1/",
-    # base_url="http://localhost:1234/v1/",
-    api_key="abc",
+    base_url=f"{configs.litellm_url}/v1",
+    api_key='sk-something',
 )
+
+print(os.getenv("LITELLM_MASTER_KEY", None))
+
+print(configs.litellm_url)
+
 model_name = "custom"
 
 logging.basicConfig(
@@ -331,8 +334,17 @@ If there is no tools or no relevant information that matches user's request, you
             ):
                 messages.append(msg)
 
+        oai_client = OpenAI(
+            base_url=f"{configs.litellm_url}/v1",
+            api_key='sk-something',
+        )
+
+        print(oai_client)
+
+        os.environ["OPENAI_API_KEY"] = "sk-something"
+
         response = oai_client.chat.completions.create(
-            model="openai/custom",
+            model="ollama/llama3",
             messages=messages,
             stream=stream,
             temperature=0.1,

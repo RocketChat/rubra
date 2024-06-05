@@ -30,7 +30,7 @@ jobs:
 
       - name: Build and Push Docker Images
         run: |
-          TAG=${GITHUB_REF#refs/tags/} make build_and_push_images
+          TAG=${GITHUB_REF#refs/heads/} make build_and_push_images
         env:
           REGISTRY: ghcr.io
           ORG: ${{ github.repository_owner }}
@@ -69,7 +69,7 @@ jobs:
 
       - name: get release version
         id: get_release_version
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >>  $GITHUB_ENV
+        run: echo "TAG=${GITHUB_REF#refs/heads/}" >>  $GITHUB_ENV
 
       - name: get release id
         id: get_release_id
