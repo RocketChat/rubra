@@ -1,10 +1,10 @@
 from os import getenv
 
 def get_mongo_database_name():
-    return getenv("MONGO_DATABASE", "rubra_db")
+    return getenv("MONGODB_DATABASE", "rubra_db")
 
 def get_mongo_url() -> str:
-    url = getenv("MONGO_URL")
+    url = getenv("MONGODB_URL")
     if url:
         return url
 
@@ -12,7 +12,7 @@ def get_mongo_url() -> str:
     user = getenv("MONGODB_USER", getenv("MONGODB_USERNAME", None))
     password = getenv("MONGODB_PASS", getenv("MONGODB_PASSWORD", None))
     port = getenv("MONGODB_PORT", 27017)
-    database = getenv("MONGODB_DATABASE", "rubra")
+    database = get_mongo_database_name()
 
     if user and not password:
         print("MONGODB_USER set but password not found, ignoring user")
@@ -34,7 +34,7 @@ def get_redis_url() -> str:
     password = getenv("REDIS_PASS", getenv("REDIS_PASSWORD", None))
     user = getenv("REDIS_USER", getenv("REDIS_USERNAME", None))
     port = getenv("REDIS_PORT", 6379)
-    database = getenv("REDIS_DATABASE", "rubra")
+    database = getenv("REDIS_DATABASE", 0)
 
     if password:
         return f"redis://{user or ''}:{password}@{host}:{port}/{database}"
@@ -46,8 +46,8 @@ def get_litellm_url() -> str:
     if url:
         return url
 
-    host = getenv("LITELLM_HOST")
-    port = getenv("LITELLM_PORT")
+    host = getenv("LITELLM_HOST", "localhost")
+    port = getenv("LITELLM_PORT", 8002)
 
     return f"http://{host}:{port}"
 
@@ -58,9 +58,18 @@ def get_vector_db_url() -> str:
 
     host = getenv("VECTOR_DB_HOST", "localhost")
     port = getenv("VECTOR_DB_PORT", 8010)
-    name = getenv("VECTOR_DB_NAME", "similarity_search")
 
-    return f"http://{host}:{port}/{name}"
+    return f"http://{host}:{port}"
+
+def get_embedding_url():
+    url = getenv("EMBEDDING_URL")
+    if url:
+        return url
+
+    host = getenv("EMBEDDING_HOST", "localhost")
+    port = getenv("EMBEDDING_PORT", 8020)
+
+    return f"http://{host}:{port}"
 
 mongo_database = get_mongo_database_name()
 
@@ -71,3 +80,5 @@ litellm_url = get_litellm_url()
 vector_db_url = get_vector_db_url()
 
 redis_url = get_redis_url()
+
+embedding_url = get_embedding_url()

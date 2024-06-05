@@ -9,8 +9,6 @@ from pydantic import BaseModel
 from .custom_embeddigs import CustomEmbeddings
 from .query_milvus import Milvus
 
-MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
-
 model = {}
 top_re_rank = 5
 top_k_match = 10

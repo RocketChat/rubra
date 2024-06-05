@@ -3,7 +3,7 @@
 TAG := $(or $(TAG),main)
 GITHUB_WORKFLOW := $(or $(GITHUB_WORKFLOW),local)
 REGISTRY := $(or $(REGISTRY),index.docker.io)
-PLATFORMS := linux/amd64,linux/arm64
+PLATFORMS := linux/amd64
 BUILDX_FLAGS := --platform $(PLATFORMS) --push
 
 define get_full_tag

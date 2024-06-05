@@ -131,10 +131,14 @@ LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY", "")
 HEADERS = {"accept": "application/json", "Content-Type": "application/json"}
 
 # Initialize MongoDB client
-mongo_client = AsyncIOMotorClient(configs.mongo_url, server_api=ServerApi("1"))
-database = mongo_client[configs.mongo_url]
+mongo_client = AsyncIOMotorClient(configs.mongo_url)
+database = mongo_client[configs.mongo_database]
 
-celery_app = Celery(configs.redis_url)
+celery_app = Celery(broker=configs.redis_url)
+
+print(configs.redis_url)
+
+print(celery_app.control.ping())
 
 redis = aioredis.from_url(configs.redis_url)
 
@@ -142,6 +146,21 @@ logging.basicConfig(level=logging.INFO)
 
 def get_database():
     return database
+
+async def full_check() -> None:
+    await redis.ping()
+    print("Redis connection is ready!")
+
+    await mongo_client.admin.command("ping")
+    print("MongoDB connection is ready!")
+
+    res = requests.get(f"{LITELLM_URL}/health/readiness", { })
+
+    if res.json().get("status", "") != "healthy":
+        raise Exception("litellm not ready: " + str(res.json()))
+
+    print("litellm is ready!")
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -158,7 +177,10 @@ async def on_startup():
         ],
     )
 
+    await full_check()
+
     available_models = [r.id for r in litellm_list_model().data]
+    print(available_models)
     if not available_models:
         logging.warning("No models configured.")
         return
@@ -179,24 +201,24 @@ async def on_startup():
         welcome_asst_instruction += tool_use_instruction
 
     # Create the Welcome Assistant if it doesn't exist
-    existing_assistant = await AssistantObject.find_one({"id": "asst_welcome"})
-    if not existing_assistant:
-        logging.info("Creating Welcome Assistant")
-        assistant = AssistantObject(
-            assistant_id="asst_welcome",
-            object=Object20.assistant.value,
-            created_at=int(datetime.now().timestamp()),
-            name="Welcome Assistant",
-            description="Welcome Assistant",
-            model=welcome_asst_model,
-            instructions=welcome_asst_instruction,
-            tools=[{"type": Type824.retrieval.value}]
-            if welcome_asst_model in tool_enabled_model_pool
-            else [],  # browser
-            file_ids=[],
-            metadata={},
-        )
-        await assistant.insert()
+    # existing_assistant = await AssistantObject.find_one({"id": "asst_welcome"})
+    # if not existing_assistant:
+    #     logging.info("Creating Welcome Assistant")
+    #     assistant = AssistantObject(
+    #         assistant_id="asst_welcome",
+    #         object=Object20.assistant.value,
+    #         created_at=int(datetime.now().timestamp()),
+    #         name="Welcome Assistant",
+    #         description="Welcome Assistant",
+    #         model=welcome_asst_model,
+    #         instructions=welcome_asst_instruction,
+    #         tools=[{"type": Type824.retrieval.value}]
+    #         if welcome_asst_model in tool_enabled_model_pool
+    #         else [],  # browser
+    #         file_ids=[],
+    #         metadata={},
+    #     )
+    #     await assistant.insert()
 
 
 @app.get("/get_api_key_status", tags=["API Keys"])
@@ -1014,7 +1036,7 @@ def litellm_list_model() -> ListModelsResponse:
         models_data = sorted(models_data, key=lambda x: x.id)
         predefined_models = [convert_to_model(m) for m in models_data]
 
-        models_data = requests.get(f"{LITELLM_URL}/model/info").json().get("data", [])
+        models_data = requests.get(f"{LITELLM_URL}/model/info", headers={"Authorization": f"Bearer {LITELLM_MASTER_KEY}"}).json().get("data", [])
         models = [
             convert_model_info_to_oai_model(m, predefined_models) for m in models_data
         ]
@@ -1529,7 +1551,7 @@ async def get_run_step(
     tags=["chat/completions"],
 )
 async def chat_completion(body: CreateChatCompletionRequest):
-    client = OpenAI(base_url=LITELLM_URL, api_key="abc")
+    client = OpenAI(base_url=LITELLM_URL, api_key=LITELLM_MASTER_KEY)
     chat_messages = [
         {"role": m.__root__.role.value, "content": m.__root__.content}
         for m in body.messages
@@ -1575,45 +1597,9 @@ async def chat_completion(body: CreateChatCompletionRequest):
     else:
         return response
 
-def _health_endpoint_wrapper(fn: Callable):
-    async def _health(response: Response):
-        try:
-            await redis.ping()
-            await mongo_client.admin.command("ping")
-
-            if asyncio.iscoroutinefunction(fn):
-                await fn()
-            else:
-                fn()
-        except Exception as e:
-            print("error checking for health:", e)
-            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return {"status": "not healthy"}
-
-    return _health
-
-@app.get("/healthz/readiness", status_code=status.HTTP_204_NO_CONTENT)
-@_health_endpoint_wrapper
-def is_litellm_ready() -> None:
-    response = requests.get(f"{LITELLM_URL}/health/readiness", { })
-
-    if response.json().get("status", "") != "healthy":
-        raise Exception("litellm not ready: " + str(response.json()))
-
-    # it is important to make sure auth is working
-    response = requests.get(f"{LITELLM_URL}/health", headers={ "Authorization": f"Bearer {LITELLM_MASTER_KEY}" })
-
-    if not response.ok:
-        raise Exception("could not grab litellm health: "+response.text)
-
-
 @app.get("/healthz/liveness", status_code=status.HTTP_204_NO_CONTENT)
-@_health_endpoint_wrapper
-def is_litellm_healthy() -> None:
-    response = requests.get(f"{LITELLM_URL}/health/liveliness", { })
-
-    if response.text != "\"I'm alive!\"":
-        raise Exception("litellm not healthy: " + response.content.decode())
+def ping():
+    pass
 
 
 def data_generator(response):

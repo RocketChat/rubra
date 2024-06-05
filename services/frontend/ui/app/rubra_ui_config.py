@@ -9,7 +9,7 @@ from openai import OpenAI
 openai.api_key = "..."
 
 rubra_backend_host = os.getenv("RUBRA_BACKEND_HOST", "localhost")
-RUBRA_BACKEND_URL = f"http://{rubra_backend_host}:8000"
+RUBRA_BACKEND_URL = f"http://{rubra_backend_host}:9000"
 rubra_client = OpenAI(base_url=RUBRA_BACKEND_URL, api_key="abc")
 
 def get_all_assistants():

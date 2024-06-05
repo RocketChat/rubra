@@ -8,7 +8,7 @@ ADD requirements.txt /app/
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-# RUN spacy download en_core_web_sm
+RUN spacy download en_core_web_sm
 RUN playwright install
 RUN playwright install-deps
 
@@ -23,4 +23,4 @@ WORKDIR /app
 ENV OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 # Run app.py when the container launches
-CMD ["celery", "-A", "core.tasks.tasks", "worker", "--loglevel=info"]
+CMD ["sh", "-c", "celery -A core.tasks.tasks worker --loglevel=info -n celery@$(hostname)"]

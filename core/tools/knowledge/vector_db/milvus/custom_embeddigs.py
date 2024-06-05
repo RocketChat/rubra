@@ -1,14 +1,14 @@
 # Standard Library
 import json
-import os
 from typing import List
 
 # Third Party
 import requests
 from langchain.embeddings.base import Embeddings
 
-HOST = os.getenv("EMBEDDING_HOST", "localhost")
-EMBEDDING_URL = f"http://{HOST}:8020/embed_multiple"
+import core.config as configs
+
+EMBEDDING_URL = f"{configs.embedding_url}/embed_multiple"
 
 
 def embed_text(texts: List[str]) -> List[List[float]]:
