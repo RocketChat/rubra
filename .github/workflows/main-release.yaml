@@ -39,15 +39,14 @@ jobs:
         env:
           OWNER: "${{ github.repository_owner }}"
 
-      - name: set lower case owner name
-        run: |
-          echo "REPO_LC=$(echo ${{ github.repository }} | awk 'BEGIN{FS=OFS="/"}{print tolower($1) "/" $2}')" >>${GITHUB_ENV}
+      - name: set lower case repo name
+        run: echo "REPO_LC=${{ github.repository }}" | awk '{print tolower($0)}' >> $GITHUB_ENV
+
       - name: Build and Push Docker Images
         run: |
           make build_and_push_images
         env:
           REGISTRY: "ghcr.io"
-          ORG: ${{ env.OWNER_LC }}
           REPO: ${{ env.REPO_LC }}
           GITHUB_WORKFLOW: ${{ github.workflow }}
           TAG: ${{ github.run_id }}
