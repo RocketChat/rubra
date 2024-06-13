@@ -47,6 +47,7 @@ jobs:
           make build_and_push_images
         env:
           REGISTRY: ghcr.io
+          ORG: ${{ env.OWNER_LC }}
           REPO: ${{ env.REPO_LC }}
           GITHUB_WORKFLOW: ${{ github.workflow }}
 
