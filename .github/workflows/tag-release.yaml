@@ -34,8 +34,8 @@ jobs:
         env:
           OWNER: "${{ github.repository_owner }}"
 
-      - name: set lower case repo name
-        run: echo "REPO_LC=${{ github.repository }}" | awk '{print tolower($0)}' >> $GITHUB_ENV
+      - name: Convert repository name to lowercase
+        run: echo "REPO_NAME_LC=$(echo ${{ github.event.repository.name }} | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
       - name: Build and Push Docker Images
         run: |
@@ -48,7 +48,7 @@ jobs:
         env:
           REGISTRY: ghcr.io
           ORG: ${{ env.OWNER_LC }}
-          REPO: ${{ env.REPO_LC }}
+          REPO: ${{ env.REPO_NAME_LC }}
           GITHUB_WORKFLOW: ${{ github.workflow }}
 
   build-tauri:
