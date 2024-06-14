@@ -5,11 +5,13 @@ on:
       - docs/**
     branches:
       - main
+      - develop
   pull_request:
     paths:
       - docs/**
     branches:
       - main
+      - develop
 
 jobs:
   validate-docs:
