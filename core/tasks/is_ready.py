@@ -7,14 +7,6 @@ from core.config import litellm_url, vector_db_url
 from .celery_app import app
 
 def is_ready():
-    # response = requests.get(f"{litellm_url}/health", headers={
-    #     "Authorization": f"Bearer {os.getenv('LITELLM_MASTER_KEY', '')}"
-    # })
-    # if not response.ok:
-    #     raise Exception(response.text)
-
-    # print(response)
-
     response = requests.get(f"{litellm_url}/health/readiness")
     if not response.ok:
         raise Exception(response.text)

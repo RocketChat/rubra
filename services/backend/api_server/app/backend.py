@@ -196,24 +196,24 @@ async def on_startup():
         welcome_asst_instruction += tool_use_instruction
 
     # Create the Welcome Assistant if it doesn't exist
-    # existing_assistant = await AssistantObject.find_one({"id": "asst_welcome"})
-    # if not existing_assistant:
-    #     logging.info("Creating Welcome Assistant")
-    #     assistant = AssistantObject(
-    #         assistant_id="asst_welcome",
-    #         object=Object20.assistant.value,
-    #         created_at=int(datetime.now().timestamp()),
-    #         name="Welcome Assistant",
-    #         description="Welcome Assistant",
-    #         model=welcome_asst_model,
-    #         instructions=welcome_asst_instruction,
-    #         tools=[{"type": Type824.retrieval.value}]
-    #         if welcome_asst_model in tool_enabled_model_pool
-    #         else [],  # browser
-    #         file_ids=[],
-    #         metadata={},
-    #     )
-    #     await assistant.insert()
+    existing_assistant = await AssistantObject.find_one({"id": "asst_welcome"})
+    if not existing_assistant:
+        logging.info("Creating Welcome Assistant")
+        assistant = AssistantObject(
+            assistant_id="asst_welcome",
+            object=Object20.assistant.value,
+            created_at=int(datetime.now().timestamp()),
+            name="Welcome Assistant",
+            description="Welcome Assistant",
+            model=welcome_asst_model,
+            instructions=welcome_asst_instruction,
+            tools=[{"type": Type824.retrieval.value}]
+            if welcome_asst_model in tool_enabled_model_pool
+            else [],  # browser
+            file_ids=[],
+            metadata={},
+        )
+        await assistant.insert()
 
 
 @app.get("/get_api_key_status", tags=["API Keys"])

@@ -28,23 +28,16 @@ jobs:
       - name: Expose GH Runtime
         uses: crazy-max/ghaction-github-runtime@v3
 
-      - name: set lower case owner name
-        run: |
-          echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
-        env:
-          OWNER: "${{ github.repository_owner }}"
+      - name: Set lower case owner name
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Convert repository name to lowercase
-        run: echo "REPO_NAME_LC=$(echo ${{ github.event.repository.name }} | awk '{print tolower($0)}')" >> $GITHUB_ENV
+        run: echo "REPO_NAME_LC=$(echo '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build and Push Docker Images
         run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            TAG=${GITHUB_REF#refs/tags/}
-          else
-            TAG=${GITHUB_REF#refs/heads/}
-          fi
-          make build_and_push_images
+          TAG=${GITHUB_REF#refs/tags/}
+          make build_and_push_images TAG=$TAG SERVICE=${{ matrix.services }}
         env:
           REGISTRY: ghcr.io
           ORG: ${{ env.OWNER_LC }}
